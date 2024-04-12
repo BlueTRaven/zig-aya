@@ -108,7 +108,8 @@ pub const FontBook = struct {
     // measure text
     pub fn getTextBounds(self: *FontBook, x: f32, y: f32, str: []const u8) struct { width: f32, bounds: f32 } {
         var bounds: f32 = undefined;
-        const width = fons.fonsTextBounds(self.stash, x, y, str.ptr, null, &bounds);
+        // @compileLog(@typeName(@TypeOf(str[str.len - 1])));
+        const width = fons.fonsTextBounds(self.stash, x, y, str.ptr, str.ptr + (str.len * @sizeOf(u8)), &bounds);
         return .{ .width = width, .bounds = bounds };
     }
 

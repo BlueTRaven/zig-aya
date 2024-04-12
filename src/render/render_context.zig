@@ -54,12 +54,14 @@ pub const RenderContext = struct {
 
     /// Finalizes the queue and prepares the [`CommandBuffer`]s for submitting
     pub fn finish(self: *RenderContext) void {
-        self.flushEncoder();
+        self.command_buffers.append(self.command_encoder.finish(&.{ .label = "Base Command Buffer" })) catch unreachable;
+        self.command_encoder.release();
     }
 
     fn flushEncoder(self: *RenderContext) void {
         // finish the encoder then create a new one
         self.command_buffers.append(self.command_encoder.finish(&.{ .label = "Base Command Buffer" })) catch unreachable;
+        self.command_encoder.release();
         self.command_encoder = aya.gctx.device.createCommandEncoder(&.{ .label = "Base Command Encoder++" });
     }
 };

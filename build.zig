@@ -8,7 +8,7 @@ const zig_gamedev_build = @import("libs/zig-gamedev/build.zig");
 const fontstash_build = @import("libs/fontstash/build.zig");
 const watcher_build = @import("libs/filewatcher/build.zig");
 
-const Options = struct {
+pub const Options = struct {
     build_options: *std.Build.Step.Options,
     enable_imgui: bool,
     enable_hot_reload: bool,
@@ -49,6 +49,12 @@ fn addExecutable(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
 
     const run_cmd = b.addRunArtifact(exe);
 
+    b.installDirectory(.{
+        .source_dir = .{ .cwd_relative = thisDir() ++ "/examples/assets/" },
+        .install_dir = .prefix,
+        .install_subdir = "./bin/examples/assets/",
+    });
+
     if (install_options == .only_current) {
         const add_install_step = b.addInstallArtifact(exe, .{});
         run_cmd.step.dependOn(&add_install_step.step);
@@ -63,7 +69,7 @@ fn addExecutable(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     run_step.dependOn(&run_cmd.step);
 }
 
-fn linkLibs(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, options: Options) void {
+pub fn linkLibs(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, options: Options) void {
     wgpu_build.linkArtifact(b, exe);
     const wgpu_module = wgpu_build.getModule(b);
 
@@ -91,7 +97,7 @@ fn linkLibs(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.Resol
     const watcher_module = watcher_build.getModule(b, options.enable_hot_reload);
 
     const aya_module = b.createModule(.{
-        .root_source_file = .{ .path = "src/aya.zig" },
+        .root_source_file = .{ .cwd_relative = thisDir() ++ "/src/aya.zig" },
         .imports = &.{
             .{ .name = "stb", .module = stb_module },
             .{ .name = "sdl", .module = sdl_module },

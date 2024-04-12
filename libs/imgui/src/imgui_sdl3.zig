@@ -16,7 +16,7 @@ pub fn init(
     if (depth_format != 0) @panic("add support for passing the depth view to draw");
 
     _ = imgui.igCreateContext(null);
-    _ = imgui.ImFontAtlas_AddFontFromFileTTF(imgui.igGetIO().Fonts, "examples/assets/Roboto-Medium.ttf", 14, null, null);
+    //_ = imgui.ImFontAtlas_AddFontFromFileTTF(imgui.igGetIO().Fonts, "examples/assets/Roboto-Medium.ttf", 14, null, null);
 
     var io = imgui.igGetIO();
     io.ConfigFlags |= imgui.ImGuiConfigFlags_NavEnableKeyboard;
@@ -25,16 +25,16 @@ pub fn init(
     io.ConfigFlags |= imgui.ImGuiConfigFlags_ViewportsEnable;
 
     // optionally add FontAwesome
-    if (true) {
+    if (false) {
         var icons_config = imgui.ImFontConfig_ImFontConfig();
         icons_config[0].MergeMode = true;
         icons_config[0].PixelSnapH = true;
         icons_config[0].FontDataOwnedByAtlas = false;
         icons_config[0].GlyphOffset = .{ .x = 0, .y = 2 };
 
-        const font_awesome_range: [3]imgui.ImWchar = [_]imgui.ImWchar{ icons.icon_range_min, icons.icon_range_max, 0 };
-        const data = @embedFile("assets/" ++ icons.font_icon_filename_fas);
-        _ = imgui.ImFontAtlas_AddFontFromMemoryTTF(io.Fonts, @constCast(data.ptr), data.len, 14, icons_config, &font_awesome_range);
+        //const font_awesome_range: [3]imgui.ImWchar = [_]imgui.ImWchar{ icons.icon_range_min, icons.icon_range_max, 0 };
+        //const data = @embedFile("assets/" ++ icons.font_icon_filename_fas);
+        //_ = imgui.ImFontAtlas_AddFontFromMemoryTTF(io.Fonts, @constCast(data.ptr), data.len, 14, icons_config, &font_awesome_range);
         _ = imgui.ImFontAtlas_Build(io.Fonts);
     }
 

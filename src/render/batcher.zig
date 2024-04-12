@@ -12,7 +12,7 @@ const Quad = aya.math.Quad;
 const Mat32 = aya.math.Mat32;
 
 pub const Batcher = struct {
-    mesh: DynamicMesh(u16, Vertex),
+    mesh: DynamicMesh(u32, Vertex),
     draw_calls: std.ArrayList(DrawCall),
 
     frame: u32 = 0, // tracks when a batch is started in a new frame so that state can be reset
@@ -28,19 +28,19 @@ pub const Batcher = struct {
         quad_count: i32,
     };
 
-    fn _createDynamicMesh(max_sprites: u16) DynamicMesh(u16, Vertex) {
-        var indices = aya.mem.tmp_allocator.alloc(u16, max_sprites * 6) catch unreachable;
+    fn _createDynamicMesh(max_sprites: u16) DynamicMesh(u32, Vertex) {
+        var indices = aya.mem.tmp_allocator.alloc(u32, @as(u32, @intCast(max_sprites)) * 6) catch unreachable;
         var i: usize = 0;
         while (i < max_sprites) : (i += 1) {
-            indices[i * 3 * 2 + 0] = @as(u16, @intCast(i)) * 4 + 0;
-            indices[i * 3 * 2 + 1] = @as(u16, @intCast(i)) * 4 + 1;
-            indices[i * 3 * 2 + 2] = @as(u16, @intCast(i)) * 4 + 2;
-            indices[i * 3 * 2 + 3] = @as(u16, @intCast(i)) * 4 + 0;
-            indices[i * 3 * 2 + 4] = @as(u16, @intCast(i)) * 4 + 2;
-            indices[i * 3 * 2 + 5] = @as(u16, @intCast(i)) * 4 + 3;
+            indices[i * 3 * 2 + 0] = @as(u32, @intCast(i)) * 4 + 0;
+            indices[i * 3 * 2 + 1] = @as(u32, @intCast(i)) * 4 + 1;
+            indices[i * 3 * 2 + 2] = @as(u32, @intCast(i)) * 4 + 2;
+            indices[i * 3 * 2 + 3] = @as(u32, @intCast(i)) * 4 + 0;
+            indices[i * 3 * 2 + 4] = @as(u32, @intCast(i)) * 4 + 2;
+            indices[i * 3 * 2 + 5] = @as(u32, @intCast(i)) * 4 + 3;
         }
 
-        return DynamicMesh(u16, Vertex).init(max_sprites * 4, indices);
+        return DynamicMesh(u32, Vertex).init(@as(u32, @intCast(max_sprites)) * 4, indices);
     }
 
     pub fn init(max_sprites: u16) Batcher {
@@ -50,7 +50,10 @@ pub const Batcher = struct {
             .mesh = _createDynamicMesh(max_sprites),
             .draw_calls = std.ArrayList(DrawCall).initCapacity(aya.mem.allocator, 10) catch unreachable,
             .bind_group_cache = BindGroupCache.init(),
-            .sampler_handle = aya.gctx.createSampler(&.{}),
+            .sampler_handle = aya.gctx.createSampler(&.{
+                .address_mode_u = .repeat,
+                .address_mode_v = .repeat,
+            }),
         };
     }
 
@@ -89,7 +92,7 @@ pub const Batcher = struct {
         const ibuff = aya.gctx.lookupResourceInfo(self.mesh.ibuff) orelse return;
 
         pass.setVertexBuffer(0, vbuff.gpuobj.?, self.mesh.buffer_offset, vbuff.size);
-        pass.setIndexBuffer(ibuff.gpuobj.?, .uint16, 0, ibuff.size);
+        pass.setIndexBuffer(ibuff.gpuobj.?, .uint32, 0, ibuff.size);
 
         self.mesh.appendVertSlice(@as(usize, @intCast(self.buffer_offset)), @as(usize, @intCast(self.quad_count * 4)));
 

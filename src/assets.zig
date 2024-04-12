@@ -11,7 +11,7 @@ const Sound = aya.audio.Sound;
 fn RefCounted(comptime T: type) type {
     return struct {
         obj: T,
-        cnt: u8 = 1,
+        cnt: u32 = 1,
     };
 }
 

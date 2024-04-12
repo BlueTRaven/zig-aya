@@ -230,15 +230,21 @@ pub const GraphicsContext = struct {
         });
     }
 
-    pub fn createTextureFromFile(self: *GraphicsContext, file: []const u8) TextureHandle {
+    pub fn createTextureFromFile(self: *GraphicsContext, file: []const u8, format: wgpu.TextureFormat) TextureHandle {
         if (internal.assets.tryGetTexture(file)) |tex| return tex;
 
-        const image = aya.stb.Image.init(aya.mem.tmp_allocator, file) catch unreachable;
+        const channels: c_int = switch (format) {
+            .rgba8_unorm => 4,
+            .r8_unorm => 1,
+            else => unreachable,
+        };
+
+        const image = aya.stb.Image.init(aya.mem.tmp_allocator, file, channels) catch unreachable;
 
         var desc = wgpu.TextureDescriptor{
             .size = .{ .width = image.w, .height = image.h },
             .usage = .{ .texture_binding = true, .copy_dst = true },
-            .format = .rgba8_unorm,
+            .format = format,
         };
 
         const handle = self.pools.texture_pool.addResource(self.*, .{
@@ -251,7 +257,7 @@ pub const GraphicsContext = struct {
             .sample_count = desc.sample_count,
         });
 
-        self.writeTexture(handle, u8, image.getImageData());
+        self.writeTexture(handle, image.channels, u8, image.getImageData());
         internal.assets.putTexture(file, handle);
 
         return handle;
@@ -287,7 +293,7 @@ pub const GraphicsContext = struct {
         });
     }
 
-    pub fn writeTexture(self: *GraphicsContext, texture: TextureHandle, comptime T: type, data: []const T) void {
+    pub fn writeTexture(self: *GraphicsContext, texture: TextureHandle, channels: u32, comptime T: type, data: []const T) void {
         const texture_info: pools.TextureInfo = self.lookupResourceInfo(texture).?;
 
         self.queue.writeTexture(
@@ -295,7 +301,7 @@ pub const GraphicsContext = struct {
             @as(*const anyopaque, @ptrCast(data.ptr)),
             @as(usize, @intCast(data.len)) * @sizeOf(T),
             &.{
-                .bytes_per_row = 4 * texture_info.size.width,
+                .bytes_per_row = channels * texture_info.size.width,
                 .rows_per_image = texture_info.size.height,
             },
             &.{ .width = texture_info.size.width, .height = texture_info.size.height },
@@ -367,7 +373,7 @@ pub const GraphicsContext = struct {
     };
 
     pub fn createBindGroupLayout(self: *GraphicsContext, desc: *const BindGroupLayoutDesc) BindGroupLayoutHandle {
-        var entries: [8]wgpu.BindGroupLayoutEntry = undefined;
+        var entries: [16]wgpu.BindGroupLayoutEntry = undefined;
         for (desc.entries, 0..) |entry, i| {
             entries[i] = .{ .binding = @intCast(i), .visibility = entry.visibility };
 
@@ -429,6 +435,7 @@ pub const GraphicsContext = struct {
         bgls: []const wgpu.BindGroupLayout = &.{},
         vbuffers: []const wgpu.VertexBufferLayout = &.{},
         blend_state: wgpu.BlendState = wgpu.BlendState.alpha_blending,
+        primitive_state: wgpu.PrimitiveState = .{},
     };
 
     pub fn createPipeline(self: *GraphicsContext, desc: *const PipelineDesc) RenderPipelineHandle {
@@ -598,10 +605,8 @@ pub const GraphicsContext = struct {
 
     pub fn createComputePipeline(
         self: *GraphicsContext,
-        descriptor: wgpu.ComputePipelineDescriptor,
         desc: *const ComputePipelineDesc,
     ) ComputePipelineHandle {
-        _ = descriptor;
         const shader_module = createWgslShaderModule(self, desc.source, null);
         defer shader_module.release();
 
@@ -611,9 +616,9 @@ pub const GraphicsContext = struct {
         });
         defer if (pipeline_layout) |pl| pl.release();
 
-        return self.compute_pipeline_pool.addResource(self.*, .{
+        return self.pools.compute_pipeline_pool.addResource(self.*, .{
             .gpuobj = self.device.createComputePipeline(&.{
-                .pipeline_layout = pipeline_layout,
+                .layout = pipeline_layout orelse unreachable,
                 .compute = .{
                     .module = shader_module,
                     .entry_point = desc.entry_point,

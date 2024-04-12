@@ -110,9 +110,28 @@ pub const Mat32 = extern struct {
         return result;
     }
 
+    pub fn translation(x: f32, y: f32) Mat32 {
+        return Mat32{
+            .data = [6]f32{
+                1, 0,
+                0, 1,
+                x, y,
+            },
+        };
+    }
     pub fn translate(self: *Mat32, x: f32, y: f32) void {
         self.data[4] = self.data[0] * x + self.data[2] * y + self.data[4];
         self.data[5] = self.data[1] * x + self.data[3] * y + self.data[5];
+    }
+
+    pub fn rotation(ang: f32) Mat32 {
+        return Mat32{
+            .data = [6]f32{
+                std.math.cos(ang),  std.math.sin(ang),
+                -std.math.sin(ang), std.math.cos(ang),
+                0,                  0,
+            },
+        };
     }
 
     pub fn rotate(self: *Mat32, rads: f32) void {
@@ -126,6 +145,16 @@ pub const Mat32 = extern struct {
         self.data[3] = self.data[1] * -sin + self.data[3] * cos;
         self.data[0] = nm0;
         self.data[1] = nm1;
+    }
+
+    pub fn scaling(x: f32, y: f32) Mat32 {
+        return Mat32{
+            .data = [6]f32{
+                x, 0,
+                0, y,
+                0, 0,
+            },
+        };
     }
 
     pub fn scale(self: *Mat32, x: f32, y: f32) void {

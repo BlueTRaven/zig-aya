@@ -121,7 +121,7 @@ pub const BindGroupEntryInfo = struct {
 };
 
 pub const BindGroupInfo = struct {
-    pub const MAX_BINDINGS_PER_GROUP = 10;
+    pub const MAX_BINDINGS_PER_GROUP = 16;
 
     gpuobj: ?wgpu.BindGroup = null,
     num_entries: u32 = 0,

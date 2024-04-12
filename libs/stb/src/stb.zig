@@ -13,7 +13,7 @@ pub const Image = struct {
     w: u32,
     h: u32,
 
-    pub fn init(allocator: std.mem.Allocator, path: []const u8) !Image {
+    pub fn init(allocator: std.mem.Allocator, path: []const u8, desired_channels: c_int) !Image {
         const file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
 
@@ -25,7 +25,7 @@ pub const Image = struct {
         var w: c_int = undefined;
         var h: c_int = undefined;
         var channels: c_int = undefined;
-        const load_res = stb.stbi_load_from_memory(buffer.ptr, @as(c_int, @intCast(buffer.len)), &w, &h, &channels, 4);
+        const load_res = stb.stbi_load_from_memory(buffer.ptr, @as(c_int, @intCast(buffer.len)), &w, &h, &channels, desired_channels);
         if (load_res == null) return error.ImageLoadFailed;
 
         // defer stb.stbi_image_free(load_res);

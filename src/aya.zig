@@ -30,6 +30,8 @@ pub const time = @import("time.zig");
 pub const utils = @import("utils.zig");
 pub const window = @import("window.zig");
 
+pub const gltf_mesh = @import("gltf_mesh.zig");
+
 // essentially our fields, just made globals for ease of access
 pub var gctx: *render.GraphicsContext = undefined;
 pub var res: Resources = undefined;
@@ -247,4 +249,11 @@ fn pollEvents() bool {
     }
 
     return false;
+}
+
+pub const baseDir = thisDir() ++ "/../";
+pub const examplesDir = baseDir ++ "examples";
+
+pub inline fn thisDir() []const u8 {
+    return comptime std.fs.path.dirname(@src().file) orelse ".";
 }

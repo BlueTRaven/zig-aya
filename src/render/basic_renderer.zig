@@ -23,6 +23,8 @@ pub const BasicRenderer = struct {
     view_bind_group: aya.render.BindGroupHandle,
     pass: ?wgpu.RenderPassEncoder = null,
 
+    projection: aya.math.Mat32,
+
     pub fn init() BasicRenderer {
         const bind_group_layout0 = aya.gctx.createBindGroupLayout(&.{
             .label = "View Uniform Bind Group",
@@ -56,6 +58,8 @@ pub const BasicRenderer = struct {
             .debug = Debug.init(),
             .pipeline = pipeline,
             .view_bind_group = view_bind_group,
+
+            .projection = Mat32.initOrtho(@floatFromInt(aya.window.sizeInPixels().w), @floatFromInt(aya.window.sizeInPixels().h)),
         };
     }
 
@@ -85,14 +89,20 @@ pub const BasicRenderer = struct {
         const bg = aya.gctx.lookupResource(self.view_bind_group) orelse return;
 
         // set view uniform
-        const win_size = aya.window.sizeInPixels();
+        // const win_size = aya.window.sizeInPixels();
         const mem = aya.gctx.uniforms.allocate(Uniform, 1);
         mem.slice[0] = .{
-            .transform_matrix = Mat32.initOrtho(@as(f32, @floatFromInt(win_size.w)), @as(f32, @floatFromInt(win_size.h))),
+            .transform_matrix = self.projection, // Mat32.initOrtho(@as(f32, @floatFromInt(win_size.w)), @as(f32, @floatFromInt(win_size.h))),
         };
         // if we were given a transform matrix multiply it here
         if (trans_mat) |mat| {
-            mem.slice[0].transform_matrix = mem.slice[0].transform_matrix.mul(mat);
+            mem.slice[0] = .{
+                .transform_matrix = self.projection.mul(mat), // Mat32.initOrtho(@as(f32, @floatFromInt(win_size.w)), @as(f32, @floatFromInt(win_size.h))),
+            };
+        } else {
+            mem.slice[0] = .{
+                .transform_matrix = self.projection, // Mat32.initOrtho(@as(f32, @floatFromInt(win_size.w)), @as(f32, @floatFromInt(win_size.h))),
+            };
         }
 
         self.pass.?.setBindGroup(0, bg, &.{mem.offset});

@@ -45,6 +45,8 @@ pub const Align = enum(c_int) {
     center_middle = 18,
     right_middle = 20,
     top_left = 9,
+
+    _,
 };
 
 pub const ErrorCode = enum(c_int) {

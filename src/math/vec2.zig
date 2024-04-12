@@ -47,6 +47,10 @@ pub const Vec2 = extern struct {
         return .{ .x = self.x * other.x, .y = self.y * other.y };
     }
 
+    pub fn muls(self: Vec2, scalar: f32) Vec2 {
+        return .{ .x = self.x * scalar, .y = self.y * scalar };
+    }
+
     pub fn scaleInPlace(self: *Vec2, s: f32) void {
         self.x *= s;
         self.y *= s;

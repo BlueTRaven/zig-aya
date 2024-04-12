@@ -8,7 +8,7 @@ pub const ScratchAllocator = struct {
     buffer: []u8,
 
     pub fn init(backing_allocator: Allocator) ScratchAllocator {
-        const scratch_buffer = backing_allocator.alloc(u8, 2 * 1024 * 1024) catch unreachable;
+        const scratch_buffer = backing_allocator.alloc(u8, 8 * 1024 * 1024) catch unreachable;
 
         return .{
             .backup_allocator = backing_allocator,

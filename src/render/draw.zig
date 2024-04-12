@@ -20,15 +20,15 @@ pub const Draw = struct {
     quad: Quad = Quad.init(0, 0, 1, 1, 1, 1),
 
     pub fn init() Draw {
-        const fontbook = FontBook.init(256, 256);
+        const fontbook = FontBook.init(1024, 1024);
         _ = fontbook.addFontMem("ProggyTiny", @embedFile("assets/ProggyTiny.ttf"), false);
         fontbook.setSize(10);
 
         const white_tex = aya.gctx.createTexture(1, 1, aya.render.GraphicsContext.swapchain_format);
-        aya.gctx.writeTexture(white_tex, u8, &[_]u8{ 255, 255, 255, 255 });
+        aya.gctx.writeTexture(white_tex, 4, u8, &[_]u8{ 255, 255, 255, 255 });
 
         return .{
-            .batcher = Batcher.init(5000),
+            .batcher = Batcher.init(std.math.maxInt(u16)),
             .white_tex = white_tex,
             .white_tex_view = aya.gctx.createTextureView(white_tex, &.{}),
             .fontbook = fontbook,
@@ -68,15 +68,23 @@ pub const Draw = struct {
     }
 
     pub fn texViewport(self: *Draw, texture: TextureHandle, viewport: RectI, transform: Mat32) void {
-        self.quad.setImageDimensions(texture.width, texture.height);
+        if (aya.gctx.lookupResourceInfo(texture)) |tex_info| {
+            self.quad.setImageDimensions(@floatFromInt(tex_info.size.width), @floatFromInt(tex_info.size.height));
+        }
         self.quad.setViewportRectI(viewport);
         self.batcher.draw(texture, self.quad, transform, Color.white);
     }
 
-    pub fn text(self: *Draw, str: []const u8, x: f32, y: f32, fb: ?*FontBook) void {
+    pub fn texRect(self: *Draw, texture: TextureHandle, width: f32, height: f32, viewport: RectI, transform: Mat32) void {
+        self.quad.setImageDimensions(width, height);
+        self.quad.setViewportRectI(viewport);
+        self.batcher.draw(texture, self.quad, transform, Color.white);
+    }
+
+    pub fn text(self: *Draw, str: []const u8, x: f32, y: f32, scale: f32, fb: ?*FontBook) void {
         var book = fb orelse self.fontbook;
         // TODO: dont hardcode scale
-        const matrix = Mat32.initTransform(.{ .x = x, .y = y, .sx = 2, .sy = 2 });
+        const matrix = Mat32.initTransform(.{ .x = x, .y = y, .sx = scale, .sy = scale });
 
         var fons_quad = FontBook.Quad{};
         var iter = book.getTextIterator(str);

@@ -306,7 +306,7 @@ pub const ImageCopyTexture = extern struct {
 
 pub const ProgrammableStageDescriptor = extern struct {
     next_in_chain: [*c]const ChainedStruct = @import("std").mem.zeroes([*c]const ChainedStruct),
-    module: ShaderModule = @import("std").mem.zeroes(ShaderModule),
+    module: ?ShaderModule = @import("std").mem.zeroes(?ShaderModule),
     entry_point: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
     constant_count: usize = @import("std").mem.zeroes(usize),
     constants: [*c]const ConstantEntry = @import("std").mem.zeroes([*c]const ConstantEntry),
@@ -368,7 +368,7 @@ pub const ColorTargetState = extern struct {
 pub const ComputePipelineDescriptor = extern struct {
     next_in_chain: [*c]const ChainedStruct = @import("std").mem.zeroes([*c]const ChainedStruct),
     label: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-    layout: PipelineLayout = @import("std").mem.zeroes(PipelineLayout),
+    layout: ?PipelineLayout = @import("std").mem.zeroes(?PipelineLayout),
     compute: ProgrammableStageDescriptor = @import("std").mem.zeroes(ProgrammableStageDescriptor),
 };
 
@@ -724,6 +724,32 @@ pub const BlendState = extern struct {
         .alpha = .{
             .src_factor = .one,
             .dst_factor = .one_minus_src_alpha,
+            .operation = .add,
+        },
+    };
+
+    pub const premultiplied_blending: BlendState = .{
+        .color = .{
+            .src_factor = .one,
+            .dst_factor = .one_minus_src_alpha,
+            .operation = .add,
+        },
+        .alpha = .{
+            .src_factor = .one,
+            .dst_factor = .one,
+            .operation = .add,
+        },
+    };
+
+    pub const additive_blending: BlendState = .{
+        .color = .{
+            .src_factor = .src_alpha,
+            .dst_factor = .one,
+            .operation = .add,
+        },
+        .alpha = .{
+            .src_factor = .zero,
+            .dst_factor = .one,
             .operation = .add,
         },
     };
