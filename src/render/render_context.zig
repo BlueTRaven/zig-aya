@@ -8,9 +8,15 @@ pub const RenderContext = struct {
     command_encoder: wgpu.CommandEncoder,
     command_buffers: std.BoundedArray(wgpu.CommandBuffer, 8),
 
-    pub fn init() RenderContext {
+    pub fn init() ?RenderContext {
         var surface_texture: wgpu.SurfaceTexture = undefined;
         aya.gctx.surface.getCurrentTexture(&surface_texture);
+
+        if (surface_texture.texture == null) {
+            aya.gctx.surface.configure(&aya.gctx.surface_config);
+
+            return null;
+        }
 
         return .{
             .surface_texture = surface_texture,

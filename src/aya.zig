@@ -81,9 +81,13 @@ pub fn run(comptime config: Config) !void {
         if (config.update) |update| try update();
 
         // render
-        var rc = render.RenderContext.init();
-        if (config.render) |rend| try rend(&rc);
+        var rc_o = render.RenderContext.init();
+        if (rc_o) |*rc| {
+            if (config.render) |rend| try rend(rc);
         rc.deinit();
+        } else {
+            aya.ig.igEndFrame();
+        }
 
         // these rely on pollEvents so clear them before starting the loop
         internal.event_writers.newFrame();
