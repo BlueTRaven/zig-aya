@@ -31,6 +31,7 @@ pub const GraphicsContext = struct {
     queue: wgpu.Queue,
     surface: wgpu.Surface,
     surface_config: wgpu.SurfaceConfiguration,
+    surface_capabilities: wgpu.SurfaceCapabilities,
 
     pools: ResourcePools,
     deletion_queue: DeletionQueue,
@@ -55,7 +56,7 @@ pub const GraphicsContext = struct {
         surface.getCapabilities(adapter, &surface_capabilities);
 
         // find a compatible PresentMode
-        var present_mode = wgpu.PresentMode.fifo;
+        var present_mode = wgpu.PresentMode.immediate;
         var properties: wgpu.AdapterProperties = undefined;
         adapter.getProperties(&properties);
 
@@ -90,6 +91,7 @@ pub const GraphicsContext = struct {
             .queue = device.getQueue(),
             .surface = surface,
             .surface_config = surface_config,
+            .surface_capabilities = surface_capabilities,
             .pools = ResourcePools.init(),
             .deletion_queue = DeletionQueue.init(),
             .uniforms = undefined,
@@ -121,6 +123,21 @@ pub const GraphicsContext = struct {
 
         // create a new swapchain
         self.surface.configure(&self.surface_config);
+    }
+
+    pub fn set_vsync(self: *GraphicsContext, desired: wgpu.PresentMode) !void {
+        var found_any: bool = false;
+        for (self.surface_capabilities.present_modes[0..self.surface_capabilities.present_mode_count]) |available_mode| {
+            if (available_mode == desired) {
+                found_any = true;
+                break;
+            }
+        }
+
+        if (found_any) {
+            self.surface_config.present_mode = desired;
+            self.surface.configure(&self.surface_config);
+        } else return error.NotSupported;
     }
 
     pub fn submit(self: *GraphicsContext, commands: []const wgpu.CommandBuffer) void {
