@@ -35,25 +35,32 @@ pub const gltf_mesh = @import("gltf_mesh.zig");
 // essentially our fields, just made globals for ease of access
 pub var gctx: *render.GraphicsContext = undefined;
 pub var res: Resources = undefined;
+pub var accumulator: f32 = 0;
+pub var timestep: ?f32 = null;
 
 const internal = @import("internal.zig");
 
 pub const Config = struct {
+    allocator: ?std.mem.Allocator,
+    timestep: ?f32 = null, // Fixed timestep, if not null
+
     init: ?fn () anyerror!void = null,
     update: ?fn () anyerror!void = null,
     render: ?fn (*render.RenderContext) anyerror!void = null,
     shutdown: ?fn () anyerror!void = null,
+    final: ?fn () anyerror!void = null,
 
     window: WindowConfig = .{},
 };
 
 fn init(comptime config: Config) !void {
-    mem.init();
+    timestep = config.timestep;
+    mem.init(config.allocator);
     res = Resources.init();
     internal.init(); // needs res
     gamepad.init();
     window.init(config.window);
-    gctx = try render.GraphicsContext.init();
+    gctx = try render.GraphicsContext.init(config.window.vsync);
     audio.init();
 }
 
@@ -75,25 +82,38 @@ pub fn run(comptime config: Config) !void {
     if (config.init) |initFn| try initFn();
 
     while (!pollEvents()) {
-        ig.sdl.newFrame();
         time.tick();
+        accumulator += time.dt();
 
-        if (config.update) |update| try update();
+        var num_updates: isize = if (timestep) |ts| @as(isize, @intFromFloat(@divFloor(accumulator, ts))) else 1;
 
-        // render
-        var rc_o = render.RenderContext.init();
-        if (rc_o) |*rc| {
-            if (config.render) |rend| try rend(rc);
-        rc.deinit();
-        } else {
-            aya.ig.igEndFrame();
+        if (num_updates > 4) {
+            num_updates = 4;
+            accumulator = (config.timestep orelse 0) * 4;
         }
 
-        // these rely on pollEvents so clear them before starting the loop
-        internal.event_writers.newFrame();
-        mouse.newFrame();
-        kb.newFrame();
-        gamepad.newFrame();
+        while (num_updates > 0) {
+            num_updates -= 1;
+            if (timestep) |ts| accumulator -= ts;
+
+            ig.sdl.newFrame();
+            if (config.update) |update| try update();
+
+            // render
+            var rc_o = render.RenderContext.init();
+            if (rc_o) |*rc| {
+                if (config.render) |rend| try rend(rc);
+                rc.deinit();
+            } else {
+                ig.igEndFrame();
+            }
+
+            // these rely on pollEvents so clear them before starting the loop
+            internal.event_writers.newFrame();
+            mouse.newFrame();
+            kb.newFrame();
+            gamepad.newFrame();
+        }
     }
     if (config.shutdown) |shutdown| try shutdown();
 
@@ -196,10 +216,16 @@ fn pollEvents() bool {
             },
             // mouse
             sdl.SDL_EVENT_MOUSE_BUTTON_DOWN, sdl.SDL_EVENT_MOUSE_BUTTON_UP => {
-                if (event.button.state == 0) {
-                    aya.mouse.buttons.release(@enumFromInt(event.button.button));
-                } else {
-                    aya.mouse.buttons.press(@enumFromInt(event.button.button));
+                if (std.meta.intToEnum(aya.mouse.MouseButton, event.button.button)) |button_enum| {
+                    if (event.button.state == 0) {
+                        aya.mouse.buttons.release(button_enum);
+                    } else {
+                        aya.mouse.buttons.press(button_enum);
+                    }
+                } else |err| {
+                    switch (err) {
+                        else => {},
+                    }
                 }
             },
             sdl.SDL_EVENT_MOUSE_MOTION => {

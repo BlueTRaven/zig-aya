@@ -37,7 +37,7 @@ pub const GraphicsContext = struct {
     deletion_queue: DeletionQueue,
     uniforms: UniformBufferCache,
 
-    pub fn init() !*GraphicsContext {
+    pub fn init(vsync: aya.window.Vsync) !*GraphicsContext {
         const instance = wgpu.createInstance();
         errdefer instance.release();
 
@@ -56,17 +56,34 @@ pub const GraphicsContext = struct {
         surface.getCapabilities(adapter, &surface_capabilities);
 
         // find a compatible PresentMode
-        var present_mode = wgpu.PresentMode.immediate;
+        var present_mode: wgpu.PresentMode = switch (vsync) {
+            .immediate => .immediate,
+            .synchronized => .fifo,
+            .adaptive => .fifo_relaxed,
+        };
+        
         var properties: wgpu.AdapterProperties = undefined;
         adapter.getProperties(&properties);
 
         const supported_modes: []wgpu.PresentMode = surface_capabilities.present_modes[0..surface_capabilities.present_mode_count];
-        for ([_]wgpu.PresentMode{ .fifo, .mailbox, .immediate }) |mode| {
-            if (std.mem.indexOfPos(wgpu.PresentMode, supported_modes, 0, &.{mode}) != null) {
-                present_mode = mode;
-                break;
+        {
+            var found_any: bool = false;
+            for (supported_modes) |available_mode| {
+                if (available_mode == present_mode) {
+                    found_any = true;
+                    break;
+                }
             }
+
+            if (!found_any) present_mode = .immediate;
         }
+
+        // for ([_]wgpu.PresentMode{ .fifo, .mailbox, .immediate }) |mode| {
+        //     if (std.mem.indexOfPos(wgpu.PresentMode, supported_modes, 0, &.{mode}) != null) {
+        //         present_mode = mode;
+        //         break;
+        //     }
+        // }
 
         const win_size = aya.window.sizeInPixels();
 
