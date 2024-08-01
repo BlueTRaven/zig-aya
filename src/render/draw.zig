@@ -75,6 +75,31 @@ pub const Draw = struct {
         self.batcher.draw(texture, self.quad, transform, Color.white);
     }
 
+    pub const TexConfig = struct {
+        viewport: ?RectI = null,
+        x: f32 = 0,
+        y: f32 = 0,
+        sx: f32 = 1,
+        sy: f32 = 1,
+        ox: f32 = 0,
+        oy: f32 = 0,
+        color: aya.math.Color = Color.white,
+    };
+
+    pub fn texConfig(self: *Draw, texture: TextureHandle, config: TexConfig) void {
+        if (aya.gctx.lookupResourceInfo(texture)) |tex_info| {
+            if (config.viewport) |vp| {
+                self.quad.setImageDimensions(@floatFromInt(tex_info.size.width), @floatFromInt(tex_info.size.height));
+                self.quad.setViewportRectI(vp);
+            } else {
+                self.quad.setFill(@floatFromInt(tex_info.size.width), @floatFromInt(tex_info.size.height));
+            }
+        }
+        const mat = Mat32.initTransform(.{ .x = config.x, .y = config.y, .sx = config.sx, .sy = config.sy, .ox = config.ox, .oy = config.oy });
+
+        self.batcher.draw(texture, self.quad, mat, config.color);
+    }
+
     pub fn texRect(self: *Draw, texture: TextureHandle, width: f32, height: f32, viewport: RectI, transform: Mat32) void {
         self.quad.setImageDimensions(width, height);
         self.quad.setViewportRectI(viewport);

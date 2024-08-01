@@ -18,9 +18,54 @@ fn RefCounted(comptime T: type) type {
 const asset_path = "examples/assets";
 
 pub const Assets = struct {
+    const SoundList = std.ArrayList(Sound);
+    pub const SoundRingBuffer = struct {
+        allocator: std.mem.Allocator,
+        current: usize,
+
+        capacity: usize,
+        sounds: []?Sound,
+
+        pub fn init(allocator: std.mem.Allocator, capacity: usize) !SoundRingBuffer {
+            const sounds = try allocator.alloc(?Sound, capacity);
+            @memset(sounds, null);
+
+            return SoundRingBuffer{
+                .allocator = allocator,
+                .current = 0,
+
+                .capacity = capacity,
+                .sounds = sounds,
+            };
+        }
+
+        pub fn deinit(self: SoundRingBuffer) void {
+            self.allocator.free(self.sounds);
+        }
+
+        pub fn is_full(self: SoundRingBuffer) bool {
+            return self.last == self.current;
+        }
+
+        pub fn next(self: *SoundRingBuffer) *?Sound {
+            for (0..self.capacity) |i| {
+                const actuali = @mod(i + self.current, self.capacity);
+
+                if (self.sounds[actuali] == null or !self.sounds[actuali].?.isPlaying()) {
+                    self.current = actuali;
+                    return &self.sounds[actuali];
+                }
+            }
+
+            self.current = @mod(self.current + 1, self.capacity);
+            self.sounds[self.current].?.stop();
+            return &self.sounds[self.current];
+        }
+    };
     textures: std.StringHashMap(RefCounted(TextureHandle)),
     // shaders: std.StringHashMap(RefCounted(ShaderInfo)),
-    sounds: std.StringHashMap(RefCounted(Sound)),
+    // sounds: std.StringHashMap(RefCounted(Sound)),
+    sounds: std.StringHashMap(SoundRingBuffer),
 
     pub fn init() Assets {
         // disable hot reload if the FileWatcher is disabled
@@ -30,7 +75,8 @@ pub const Assets = struct {
         return .{
             .textures = std.StringHashMap(RefCounted(TextureHandle)).init(aya.mem.allocator),
             // .shaders = std.StringHashMap(RefCounted(ShaderInfo)).init(aya.mem.allocator),
-            .sounds = std.StringHashMap(RefCounted(Sound)).init(aya.mem.allocator),
+            // .sounds = std.StringHashMap(RefCounted(Sound)).init(aya.mem.allocator),
+            .sounds = std.StringHashMap(SoundRingBuffer).init(aya.mem.allocator),
         };
     }
 
@@ -40,9 +86,19 @@ pub const Assets = struct {
         // while (texture_iter.next()) |rc| aya.gctx.destroyResource(rc.obj);
         self.textures.deinit();
 
-        var sound_iter = self.sounds.valueIterator();
-        while (sound_iter.next()) |rc| rc.obj.src.destroy();
-        self.sounds.deinit();
+        // var sound_iter = self.sounds.valueIterator();
+        // while (sound_iter.next()) |sound_list| {
+        //     // NOTE: sounds don't actually need to be de-inited since thee sound engine will get destroyed first and will handle cleanup of that (presumably)
+        //     // for (sound_list.items) |sound| {
+        //     //     sound.deinit();
+        //     // }
+        //     sound_list.deinit();
+        // }
+        // self.sounds.deinit();
+
+        // var sound_iter = self.sounds.valueIterator();
+        // while (sound_iter.next()) |rc| rc.obj.src.destroy();
+        // self.sounds.deinit();
     }
 
     // Textures
@@ -93,44 +149,47 @@ pub const Assets = struct {
     }
 
     // Sounds
-    pub fn tryGetSound(self: *Assets, filepath: [:0]const u8) ?Sound {
-        if (self.sounds.getPtr(filepath)) |rc| {
-            rc.cnt += 1;
-            return rc.obj;
-        }
-        return null;
-    }
+    // pub fn getNextSound(self: *Assets, filepath: [:0]const u8, engine: aya.audio) Sound {
+    //     _ = engine; // autofix
+    //     if (self.sounds.getPtr(filepath)) |sound_list| {
+    //         for (sound_list.items) |sound| {
+    //             if (!sound.isPlaying()) {
+    //                 return sound;
+    //             }
+    //         }
+    //     }
+    // }
 
-    pub fn putSound(self: *Assets, filepath: [:0]const u8, sound: Sound) void {
-        self.sounds.put(filepath, .{ .obj = sound }) catch unreachable;
-    }
+    // pub fn putSound(self: *Assets, filepath: [:0]const u8, sound: Sound) void {
+    //     self.sounds.put(filepath, .{ .obj = sound }) catch unreachable;
+    // }
 
-    /// increases the ref count on the Sound
-    pub fn cloneSound(self: *Assets, sound: Sound) void {
-        var iter = self.sounds.valueIterator();
-        while (iter.next()) |rc| {
-            if (rc.obj.src == sound.src) {
-                rc.cnt += 1;
-                return;
-            }
-        }
-    }
+    // increases the ref count on the Sound
+    // pub fn cloneSound(self: *Assets, sound: Sound) void {
+    //     var iter = self.sounds.valueIterator();
+    //     while (iter.next()) |rc| {
+    //         if (rc.obj.src == sound.src) {
+    //             rc.cnt += 1;
+    //             return;
+    //         }
+    //     }
+    // }
 
-    /// returns true if the ref count reached 0 and the asset should be destroyed
-    pub fn releaseSound(self: *Assets, sound: Sound) bool {
-        var iter = self.sounds.iterator();
-        while (iter.next()) |*entry| {
-            if (entry.value_ptr.obj.src == sound.src) {
-                entry.value_ptr.cnt -= 1;
-                if (entry.value_ptr.cnt == 0) {
-                    _ = self.sounds.removeByPtr(entry.key_ptr);
-                    return true;
-                }
-            }
-        }
+    // returns true if the ref count reached 0 and the asset should be destroyed
+    // pub fn releaseSound(self: *Assets, sound: Sound) bool {
+    //     var iter = self.sounds.iterator();
+    //     while (iter.next()) |*entry| {
+    //         if (entry.value_ptr.obj.src == sound.src) {
+    //             entry.value_ptr.cnt -= 1;
+    //             if (entry.value_ptr.cnt == 0) {
+    //                 _ = self.sounds.removeByPtr(entry.key_ptr);
+    //                 return true;
+    //             }
+    //         }
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 };
 
 // hot reload handler

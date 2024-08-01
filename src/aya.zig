@@ -119,6 +119,8 @@ pub fn run(comptime config: Config) !void {
 
     ig.sdl.shutdown();
     deinit();
+
+    if (config.final) |final| try final();
 }
 
 pub fn addEvent(comptime T: type) void {

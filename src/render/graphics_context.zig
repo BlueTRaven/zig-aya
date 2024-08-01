@@ -61,7 +61,7 @@ pub const GraphicsContext = struct {
             .synchronized => .fifo,
             .adaptive => .fifo_relaxed,
         };
-        
+
         var properties: wgpu.AdapterProperties = undefined;
         adapter.getProperties(&properties);
 
@@ -451,6 +451,24 @@ pub const GraphicsContext = struct {
                 bg_entries[i].texture_view = self.lookupResource(tv).?;
             } else if (entry.buffer_handle) |buffer| {
                 bg_entries[i].buffer = self.lookupResource(buffer).?;
+            } else if (entry.texture_view_array_handles) |tvs| {
+                const max_array = 256;
+                var array = [_]wgpu.TextureView{undefined} ** max_array;
+
+                for (0..tvs.len) |j| {
+                    array[j] = self.lookupResource(tvs[j]).?;
+                }
+
+                bg_entries[i].next_in_chain = @ptrCast(&aya.wgpu.BindGroupEntryExtras{
+                    .chain = aya.wgpu.ChainedStruct{
+                        // WGPUSType_BindGroupEntryExtras
+                        // from wgpu.h
+                        // number still works even if it's not included in webgpu.zig!
+                        .s_type = @enumFromInt(0x00030007),
+                    },
+                    .texture_view_count = tvs.len,
+                    .texture_views = @ptrCast(array[0..tvs.len]),
+                });
             }
         }
 
@@ -818,6 +836,11 @@ pub const GraphicsContext = struct {
                         } else if (entries[i].texture_view_handle) |texture_view| {
                             if (!self.isResourceValid(texture_view))
                                 return false;
+                        } else if (entries[i].texture_view_array_handles) |tva| {
+                            for (tva) |tv| {
+                                if (!self.isResourceValid(tv))
+                                    return false;
+                            }
                         } else unreachable;
                     }
                     return true;
@@ -980,6 +1003,7 @@ fn createAdapter(instance: Instance) !wgpu.Adapter {
 }
 
 fn createDevice(adapter: wgpu.Adapter) !wgpu.Device {
+    // std.log.debug("Has Feature \"{s}\": {}", .{ "WGPUNativeFeature_SampledTextureAndStorageBufferArrayNonUniformIndexing", adapter.hasFeature(@enumFromInt(0x00030007)) });
     const device = device: {
         const Response = struct {
             status: wgpu.RequestDeviceStatus = .unknown,
@@ -1003,7 +1027,11 @@ fn createDevice(adapter: wgpu.Adapter) !wgpu.Device {
 
         var response = Response{};
         adapter.requestDevice(
-            &.{ .device_lost_callback = deviceLost },
+            &.{
+                .device_lost_callback = deviceLost,
+                .required_feature_count = 3,
+                .required_features = &[_]wgpu.FeatureName{ @enumFromInt(0x00030002), @enumFromInt(0x00030006), @enumFromInt(0x00030007) },
+            },
             callback,
             @ptrCast(&response),
         );

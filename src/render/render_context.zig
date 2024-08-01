@@ -64,7 +64,7 @@ pub const RenderContext = struct {
         self.command_encoder.release();
     }
 
-    fn flushEncoder(self: *RenderContext) void {
+    pub fn flushEncoder(self: *RenderContext) void {
         // finish the encoder then create a new one
         self.command_buffers.append(self.command_encoder.finish(&.{ .label = "Base Command Buffer" })) catch unreachable;
         self.command_encoder.release();

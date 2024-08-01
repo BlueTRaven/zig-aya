@@ -25,19 +25,58 @@ pub fn init() void {
 }
 
 pub fn deinit() void {
+    var iter = internal.assets.sounds.iterator();
+    while (iter.next()) |entry| {
+        for (entry.value_ptr.sounds) |sound| {
+            if (sound) |s| s.deinit();
+        }
+        entry.value_ptr.deinit();
+    }
+    internal.assets.sounds.deinit();
+
     audio_filter.deinit();
     engine.destroy();
     ma.deinit();
 }
 
 pub fn loadSound(filepath: [:0]const u8, args: SoundConfig) Sound {
-    if (internal.assets.tryGetSound(filepath)) |snd| return snd;
+    const gop = internal.assets.sounds.getOrPut(filepath) catch unreachable;
 
-    const snd = engine.createSoundFromFile(filepath, .{ .flags = args.flags, .sgroup = if (args.group) |g| g.src else null }) catch unreachable;
-    const sound = Sound{ .src = snd };
-    internal.assets.putSound(filepath, sound);
+    if (!gop.found_existing) {
+        const SoundRingBuffer = @import("../assets.zig").Assets.SoundRingBuffer;
+        gop.value_ptr.* = SoundRingBuffer.init(aya.mem.allocator, 8) catch unreachable;
+    }
 
-    return sound;
+    var sound_list = gop.value_ptr;
+    const next_sound = sound_list.next();
+    if (next_sound.* == null) {
+        const snd = engine.createSoundFromFile(filepath, .{ .flags = args.flags, .sgroup = if (args.group) |g| g.src else null }) catch unreachable;
+
+        next_sound.* = Sound{ .src = snd };
+    }
+    // for (sound_list.items) |sound| {
+    //     if (!sound.isPlaying()) {
+    //         return sound;
+    //     }
+    // }
+
+    // sound_list.append(sound) catch unreachable;
+
+    return next_sound.*.?;
+
+    // const loaded_sound = brk: {
+    //     if (internal.assets.tryGetSound(filepath)) |snd| {
+    //         break :brk snd;
+    //     } else {
+    //         const snd = engine.createSoundFromFile(filepath, .{ .flags = args.flags, .sgroup = if (args.group) |g| g.src else null }) catch unreachable;
+    //         const sound = Sound{ .src = snd };
+    //         internal.assets.putSound(filepath, sound);
+
+    //         break :brk sound;
+    //     }
+    // };
+
+    // return Sound{ .src = engine.createSoundCopy(loaded_sound.src, .{}, null) catch unreachable };
 }
 
 pub fn loadSfxr() *Sfxr {

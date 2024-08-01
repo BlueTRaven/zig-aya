@@ -4,14 +4,16 @@ const aya = @import("../aya.zig");
 const WgpuColor = aya.wgpu.Color;
 const Vec4 = @import("vec4.zig").Vec4;
 
+pub const ColorComps = extern struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+};
+
 pub const Color = extern union {
     value: u32,
-    comps: extern struct {
-        r: u8,
-        g: u8,
-        b: u8,
-        a: u8,
-    },
+    comps: ColorComps,
 
     /// parses a hex string color literal.
     /// allowed formats are:

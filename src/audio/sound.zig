@@ -8,8 +8,8 @@ pub const Sound = struct {
     src: *ma.Sound,
 
     pub fn deinit(self: Sound) void {
-        if (internal.assets.releaseSound(self))
-            self.src.destroy();
+        // if (internal.assets.releaseSound(self))
+        self.src.destroy();
     }
 
     pub fn inspect(self: *Sound) void {

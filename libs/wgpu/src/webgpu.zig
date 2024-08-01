@@ -985,6 +985,8 @@ pub const FeatureName = enum(u32) {
     rg11_b10_ufloat_renderable = 9,
     bgra8_unorm_storage = 10,
     float32_filterable = 11,
+
+    _,
 };
 
 pub const FilterMode = enum(u32) {
@@ -1073,6 +1075,9 @@ pub const SType = enum(u32) {
     surface_descriptor_from_android_native_window = 9,
     surface_descriptor_from_xcb_window = 10,
     render_pass_descriptor_max_draw_count = 15,
+
+    force_32 = 0x7FFFFFFF,
+    _,
 };
 
 pub const SamplerBindingType = enum(u32) {

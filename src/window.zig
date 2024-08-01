@@ -111,7 +111,7 @@ pub fn size() Size {
 }
 
 pub fn setSize(w: i32, h: i32) void {
-    sdl.SDL_SetWindowSize(sdl_window, w, h);
+    _ = sdl.SDL_SetWindowSize(sdl_window, w, h);
 }
 
 pub fn position() Size {

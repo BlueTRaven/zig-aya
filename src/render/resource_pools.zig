@@ -118,6 +118,7 @@ pub const BindGroupEntryInfo = struct {
     size: u64 = 0,
     sampler_handle: ?SamplerHandle = null,
     texture_view_handle: ?TextureViewHandle = null,
+    texture_view_array_handles: ?[]TextureViewHandle = null,
 };
 
 pub const BindGroupInfo = struct {
@@ -176,6 +177,7 @@ pub fn HandleToResourceInfoType(comptime T: type) type {
     };
 }
 
+var mutex: std.Thread.Mutex = .{};
 fn ResourcePool(comptime Info: type, comptime Resource: type) type {
     const zpool = @import("zpool");
     const Pool = zpool.Pool(16, 16, Resource, struct { info: Info });
@@ -199,8 +201,13 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
         pub fn addResource(self: *Self, gctx: GraphicsContext, info: Info) Handle {
             std.debug.assert(info.gpuobj != null);
 
-            if (self.pool.addIfNotFull(.{ .info = info })) |handle| {
-                return handle;
+            {
+                mutex.lock();
+                defer mutex.unlock();
+
+                if (self.pool.addIfNotFull(.{ .info = info })) |handle| {
+                    return handle;
+                }
             }
 
             // If pool is free, attempt to remove a resource that is now invalid
@@ -231,6 +238,9 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
             //     next_dependent_handle: TextureViewHandle,
             // };
             if (self.removeResourceIfInvalid(gctx)) {
+                mutex.lock();
+                defer mutex.unlock();
+
                 if (self.pool.addIfNotFull(.{ .info = info })) |handle| {
                     return handle;
                 }
@@ -242,9 +252,13 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
         }
 
         fn removeResourceIfInvalid(self: *Self, gctx: GraphicsContext) bool {
+            _ = gctx; // autofix
+            mutex.lock();
+            defer mutex.unlock();
+
             var live_handles = self.pool.liveHandles();
             while (live_handles.next()) |live_handle| {
-                if (!gctx.isResourceValid(live_handle)) {
+                if (!self.isHandleValid(live_handle)) {
                     self.destroyResource(live_handle, true);
                     return true;
                 }
@@ -255,6 +269,9 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
         pub fn destroyResource(self: *Self, handle: Handle, comptime call_destroy: bool) void {
             if (!self.isHandleValid(handle))
                 return;
+
+            mutex.lock();
+            defer mutex.unlock();
 
             const resource_info = self.pool.getColumnPtrAssumeLive(handle, .info);
             const gpuobj = resource_info.gpuobj.?;
@@ -273,24 +290,39 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
             if (!self.isHandleValid(handle))
                 return;
 
+            mutex.lock();
+            defer mutex.unlock();
+
             const resource_info = self.pool.getColumnPtrAssumeLive(handle, .info);
             const gpuobj = resource_info.gpuobj.?;
             gpuobj.reference();
         }
 
         pub fn isHandleValid(self: Self, handle: Handle) bool {
+            mutex.lock();
+            defer mutex.unlock();
+
             return self.pool.isLiveHandle(handle);
         }
 
         pub fn getInfoPtr(self: Self, handle: Handle) *Info {
+            mutex.lock();
+            defer mutex.unlock();
+
             return self.pool.getColumnPtrAssumeLive(handle, .info);
         }
 
         pub fn getInfo(self: Self, handle: Handle) Info {
+            mutex.lock();
+            defer mutex.unlock();
+
             return self.pool.getColumnAssumeLive(handle, .info);
         }
 
         pub fn getGpuObj(self: Self, handle: Handle) ?Resource {
+            mutex.lock();
+            defer mutex.unlock();
+
             if (self.pool.getColumnPtrIfLive(handle, .info)) |info| {
                 return info.gpuobj;
             }

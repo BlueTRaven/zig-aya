@@ -1,5 +1,6 @@
 const std = @import("std");
 const Edge = @import("edge.zig").Edge;
+const mod = @import("mod.zig");
 const math = @import("math.zig");
 
 pub const Rect = struct {
@@ -24,7 +25,11 @@ pub const Rect = struct {
         return self.y + self.h;
     }
 
-    pub fn center(self: Rect) math.Vec2 {
+    pub fn top_left(self: Rect) mod.Vec2 {
+        return .{ .x = self.top(), .y = self.left() };
+    }
+
+    pub fn center(self: Rect) mod.Vec2 {
         return .{ .x = self.x + self.w / 2, .y = self.y + self.h / 2 };
     }
 

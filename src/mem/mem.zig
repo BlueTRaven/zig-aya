@@ -10,8 +10,8 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub var allocator: std.mem.Allocator = undefined;
 pub var tmp_allocator: std.mem.Allocator = undefined;
 
-pub fn init() void {
-    allocator = gpa.allocator();
+pub fn init(gpa_allocator: ?std.mem.Allocator) void {
+    allocator = gpa_allocator orelse gpa.allocator();
     tmp_allocator_instance = ScratchAllocator.init(allocator);
     tmp_allocator = tmp_allocator_instance.allocator();
 }
